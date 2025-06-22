@@ -3,6 +3,7 @@ from attention.CausalAttention import CausalAttention
 from attention.MultiHeadAttentionWrapper import MultiHeadAttention
 from module.DummyGPT import DummyGPTModel,FeedForward,ExampleDeelNeuralNetwork
 import tiktoken
+from module.block import TransformerBlock
 
 def pringt_gradients(model, x):
     """
@@ -107,3 +108,11 @@ if __name__ == '__main__':
     torch.manual_seed(123)
     model_with_shortcut = ExampleDeelNeuralNetwork(layer_size=layer_size, use_shortcut=True)
     pringt_gradients(model_with_shortcut, sample_input)
+
+
+    print("====================")
+    torch.manual_seed(123)
+    x = torch.rand(2, 4, 768)
+    block = TransformerBlock(GPT_CONFIG_1024M)
+    output = block(x)
+    print("output.shape", output.shape)
