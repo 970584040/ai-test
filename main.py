@@ -4,6 +4,7 @@ from attention.MultiHeadAttentionWrapper import MultiHeadAttention
 from module.DummyGPT import DummyGPTModel,FeedForward,ExampleDeelNeuralNetwork
 import tiktoken
 from module.block import TransformerBlock
+from module.GPTModule import GPTModule
 
 def pringt_gradients(model, x):
     """
@@ -116,3 +117,27 @@ if __name__ == '__main__':
     block = TransformerBlock(GPT_CONFIG_1024M)
     output = block(x)
     print("output.shape", output.shape)
+
+    print("====================")
+    torch.manual_seed(123)
+    x = torch.rand(2, 4, 768)
+    block = TransformerBlock(GPT_CONFIG_1024M)
+    output = block(x)
+    print("output.shape", output.shape)
+
+    print("====================")
+    torch.manual_seed(123)
+    model = GPTModule(GPT_CONFIG_1024M)
+    output = model(batch)
+    print("output.shape", output.shape)
+
+    total_params = sum(p.numel() for p in model.parameters()) # 计算模型参数总数
+    print(f"Total parameters: {total_params}")
+
+    # 计算内存需求
+    total_memory = total_params * 4 / 1024 / 1024 # 每个参数4字节，转换为MB
+    print(f"Total memory: {total_memory} MB")
+
+    # 因为GPTModule使用了权重共享（将词元嵌入层作为输出层重复使用），所以实际参数数量为：
+    total_params = (total_params - sum(p.numel() for p in model.out_head.parameters()))
+    print(f"Total parameters: {total_params}")
