@@ -4,7 +4,7 @@ from attention.MultiHeadAttentionWrapper import MultiHeadAttention
 from module.DummyGPT import DummyGPTModel,FeedForward,ExampleDeelNeuralNetwork
 import tiktoken
 from module.block import TransformerBlock
-from module.GPTModule import GPTModule
+from module.GPTModule import GPTModule, generate_text_simple
 
 def pringt_gradients(model, x):
     """
@@ -141,3 +141,22 @@ if __name__ == '__main__':
     # 因为GPTModule使用了权重共享（将词元嵌入层作为输出层重复使用），所以实际参数数量为：
     total_params = (total_params - sum(p.numel() for p in model.out_head.parameters()))
     print(f"Total parameters: {total_params}")
+
+    print("=========生成文本===========")
+    start_context = "Hello, I am"
+    encoded = tokenizer.encode(start_context)
+    print("encoded:", encoded)
+
+    encoded_tensor = torch.tensor(encoded).unsqueeze(0)
+    print("encoded_tensor.shape:", encoded_tensor.shape)
+
+    # model = GPTModule(GPT_CONFIG_1024M)
+    model.eval() # 关闭 dropout
+    out = generate_text_simple(
+        model=model,
+        idx=encoded_tensor, 
+        max_new_tokens=6, 
+        context_size=GPT_CONFIG_1024M["context_length"]
+    )
+    print("out:", out)
+    print("out.shape:", len(out[0]), out.shape)
