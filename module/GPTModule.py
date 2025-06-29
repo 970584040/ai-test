@@ -59,3 +59,12 @@ def generate_text_simple(model, idx, max_new_tokens, context_size):
         idx = torch.cat((idx, idx_next), dim=1)  # (batch, n_tokens+1)
 
     return idx
+
+def text_to_tokens_ids(text, tokenizer):
+    encoded = tokenizer.encode(text, allowed_special={"<|endoftext|>"})
+    return torch.tensor(encoded).unsqueeze(0)
+
+def tokens_ids_to_text(tokens_ids, tokenizer):
+    flat = tokens_ids.squeeze(0)
+    text = tokenizer.decode(flat.tolist())
+    return text

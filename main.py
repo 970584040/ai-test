@@ -4,7 +4,7 @@ from attention.MultiHeadAttentionWrapper import MultiHeadAttention
 from module.DummyGPT import DummyGPTModel,FeedForward,ExampleDeelNeuralNetwork
 import tiktoken
 from module.block import TransformerBlock
-from module.GPTModule import GPTModule, generate_text_simple
+from module.GPTModule import GPTModule, generate_text_simple,text_to_tokens_ids, tokens_ids_to_text
 
 def pringt_gradients(model, x):
     """
@@ -21,7 +21,7 @@ def pringt_gradients(model, x):
         if 'weight' in name:
             print(f"{name}: {param.grad.abs().mean().item():}")
 
-if __name__ == '__main__':
+def test():
     inputs = torch.tensor([
         [0.43, 0.15, 0.89],  # Your    (x^1)
         [0.55, 0.87, 0.66],  # journey (x^2)
@@ -160,3 +160,33 @@ if __name__ == '__main__':
     )
     print("out:", out)
     print("out.shape:", len(out[0]), out.shape)
+
+    print("====================")
+
+def gpt_main():
+    GPT_CONFIG_1024M = {
+        "vocab_size": 50257, # 词汇表大小
+        "emb_dim": 768, # 嵌入维度
+        "context_length": 1024, # 上下文长度
+        "n_heads": 12, # 多头注意力头数
+        "drop_rate": 0.1, # dropout丢弃率
+        "n_layers": 12, # 层数
+        "qkv_bias": False, # 是否使用偏置
+    }
+    model = GPTModule(GPT_CONFIG_1024M)
+
+    start_context = "Every effort moves you"
+    tokenizer = tiktoken.get_encoding("gpt2")
+    tokens_ids = generate_text_simple(
+        model=model,
+        idx=text_to_tokens_ids(start_context, tokenizer),
+        max_new_tokens=10,
+        context_size=GPT_CONFIG_1024M["context_length"]
+    )
+
+    print("tokens_ids:", tokens_ids)
+    print("tokens_ids output text:", tokens_ids_to_text(tokens_ids, tokenizer))
+
+if __name__ == '__main__':
+    # test()
+    gpt_main()
