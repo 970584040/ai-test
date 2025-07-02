@@ -33,7 +33,8 @@ class MultiHeadAttention(torch.nn.Module):
 
         self.out_proj = torch.nn.Linear(d_out, d_out) # 线性层组合头的输出
         self.dropout = torch.nn.Dropout(dropout)
-        self.register_buffer("mask", torch.tril(torch.ones(content_length, content_length), diagonal=1))
+        # 创建因果掩码：上三角部分为True（需要被掩盖）
+        self.register_buffer("mask", torch.triu(torch.ones(content_length, content_length), diagonal=1))
 
     def forward(self, x):
         b, number_tokens, d_in = x.shape
@@ -54,9 +55,10 @@ class MultiHeadAttention(torch.nn.Module):
         attn_scores = queries @ keys.transpose(2, 3) # 计算每个头的点积
         mask_bool = self.mask.bool()[:number_tokens, :number_tokens] # 被截断为词元向量的掩码。
 
-        attn_scores.masked_fill_(mask_bool, -torch.inf) # 填充掩码
+        # 使用-inf填充需要掩盖的位置，并添加数值稳定性检查
+        attn_scores.masked_fill_(mask_bool, -1e9)  # 使用-1e9代替-inf防止数值不稳定
 
-        attn_weights = torch.softmax(attn_scores / keys.shape[-1] ** 0.5, dim=-1)
+        attn_weights = torch.softmax(attn_scores / (keys.shape[-1] ** 0.5), dim=-1)
         attn_weights = self.dropout(attn_weights)
 
         content_vec = (attn_weights @ values).transpose(1, 2)

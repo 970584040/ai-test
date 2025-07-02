@@ -5,6 +5,10 @@ from module.DummyGPT import DummyGPTModel,FeedForward,ExampleDeelNeuralNetwork
 import tiktoken
 from module.block import TransformerBlock
 from module.GPTModule import GPTModule, generate_text_simple,text_to_tokens_ids, tokens_ids_to_text
+import os
+import train.participle as participle
+from train.participle import GPTDatasetV1,create_dataloader_v1
+from train.main import calculate_loss_loader,train_model_simple
 
 def pringt_gradients(model, x):
     """
@@ -187,6 +191,63 @@ def gpt_main():
     print("tokens_ids:", tokens_ids)
     print("tokens_ids output text:", tokens_ids_to_text(tokens_ids, tokenizer))
 
+def train_main():
+    # 获取当前脚本所在目录
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # 构建文件路径
+    file_path = os.path.join(script_dir, "the-verdict.txt")
+    
+    with open(file_path, "r", encoding="utf-8") as f:
+        text = f.read()
+    
+    tokenizer = tiktoken.get_encoding("gpt2")
+    print(len(text))
+    print(len(tokenizer.encode(text)))
+
+    train_ratio = 0.90
+    train_size = int(train_ratio * len(text))
+    train_text = text[:train_size] # 训练集
+    val_text = text[train_size:] # 验证集
+
+    print(len(train_text))
+    print(len(val_text))
+    GPT_CONFIG_1024M = {
+        "vocab_size": 50257, # 词汇表大小
+        "emb_dim": 768, # 嵌入维度
+        "context_length": 256, # 上下文长度
+        "n_heads": 12, # 多头注意力头数
+        "drop_rate": 0.1, # dropout丢弃率
+        "n_layers": 12, # 层数
+        "qkv_bias": False, # 是否使用偏置
+    }
+
+    train_loader = participle.create_dataloader_v1(train_text, batch_size=2, max_length=GPT_CONFIG_1024M["context_length"], stride=GPT_CONFIG_1024M["context_length"], shuffle=True, drop_last=True, num_workers=0)
+    val_loader = participle.create_dataloader_v1(val_text, batch_size=2, max_length=GPT_CONFIG_1024M["context_length"], stride=GPT_CONFIG_1024M["context_length"], shuffle=False, drop_last=False, num_workers=0)
+
+    print("Train Data:")
+    for x, y in train_loader:
+       print(x.shape, y.shape)
+
+    print("Val Data:")
+    for x, y in val_loader:
+        print(x.shape, y.shape)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    torch.manual_seed(123)
+    model = GPTModule(GPT_CONFIG_1024M)
+    model.to(device)
+    with torch.no_grad():
+        train_loss = calculate_loss_loader(train_loader, model, device)
+        val_loss = calculate_loss_loader(val_loader, model, device)
+    print(f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+
+    # 使用更合理的学习率
+    optimizer = torch.optim.AdamW(model.parameters(), lr=5e-4, weight_decay=0.1)
+    num_epochs = 10
+    train_losses, val_losses, track_tokens_seen = train_model_simple(model, train_loader, val_loader, optimizer, device, num_epochs=num_epochs, eval_freq=5, eval_iter=5, start_context="Every effort moves you", tokenizer=tokenizer)
+
+
 if __name__ == '__main__':
     # test()
-    gpt_main()
+    # gpt_main()
+    train_main()
