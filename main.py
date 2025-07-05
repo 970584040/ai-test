@@ -167,6 +167,28 @@ def test():
 
     print("====================")
 
+def save_load_model(model, optimizer, device, GPT_CONFIG_1024M):
+    # 保存模型
+    torch.save(model.state_dict(), "model.pth")
+
+    # 加载模型 权重和配置
+    model = GPTModule(GPT_CONFIG_1024M)
+    model.load_state_dict(torch.load("model.pth"), map_location=device)
+    model.eval()
+    
+    # 保存模型和优化器的的state_dict
+    torch.save({
+        "model_state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+    }, "model.pth")
+
+    # 加载模型和优化器的state_dict
+    checkpoint = torch.load("model.pth", map_location=device)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    model.train()
+    
+
 def gpt_main():
     GPT_CONFIG_1024M = {
         "vocab_size": 50257, # 词汇表大小
@@ -245,6 +267,10 @@ def train_main():
     optimizer = torch.optim.AdamW(model.parameters(), lr=5e-4, weight_decay=0.1)
     num_epochs = 10
     train_losses, val_losses, track_tokens_seen = train_model_simple(model, train_loader, val_loader, optimizer, device, num_epochs=num_epochs, eval_freq=5, eval_iter=5, start_context="Every effort moves you", tokenizer=tokenizer)
+
+    # save_load_model(model, optimizer, device, GPT_CONFIG_1024M)
+
+   
 
 
 if __name__ == '__main__':
