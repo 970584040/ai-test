@@ -4,11 +4,12 @@ from attention.MultiHeadAttentionWrapper import MultiHeadAttention
 from module.DummyGPT import DummyGPTModel,FeedForward,ExampleDeelNeuralNetwork
 import tiktoken
 from module.block import TransformerBlock
-from module.GPTModule import GPTModule, generate_text_simple,text_to_tokens_ids, tokens_ids_to_text
+from module.GPTModule import GPTModule, generate_text_simple,text_to_tokens_ids, tokens_ids_to_text, load_weights_into_gpt
 import os
 import train.participle as participle
 from train.participle import GPTDatasetV1,create_dataloader_v1
 from train.main import calculate_loss_loader,train_model_simple
+from gpt_download import download_and_load_gpt2
 
 def pringt_gradients(model, x):
     """
@@ -270,10 +271,64 @@ def train_main():
 
     # save_load_model(model, optimizer, device, GPT_CONFIG_1024M)
 
-   
 
+def load_model():
+    """
+    加载gpt2-small (124M)模型参数
+    """
+    model_configs = {
+        "gpt2-small (124M)": {"emb_dim": 768, "n_layers": 12, "n_heads": 12},
+        "gpt2-medium (355M)": {"emb_dim": 1024, "n_layers": 24, "n_heads": 16},
+        "gpt2-large (774M)": {"emb_dim": 1280, "n_layers": 36, "n_heads": 20},
+        "gpt2-xl (1558M)": {"emb_dim": 1600, "n_layers": 48, "n_heads": 25},
+    }
+
+    GPT_CONFIG_1024M = {
+        "vocab_size": 50257, # 词汇表大小
+        "emb_dim": 768, # 嵌入维度
+        "context_length": 1024, # 上下文长度
+        "n_heads": 12, # 多头注意力头数
+        "drop_rate": 0.1, # dropout丢弃率
+        "n_layers": 12, # 层数
+        "qkv_bias": False, # 是否使用偏置
+    }
+
+    # Copy the base configuration and update with specific model settings
+    model_name = "gpt2-small (124M)"  # Example model name
+    NEW_CONFIG = GPT_CONFIG_1024M.copy()
+    NEW_CONFIG.update(model_configs[model_name])
+    NEW_CONFIG.update({"context_length": 1024, "qkv_bias": True})
+
+    gpt = GPTModule(NEW_CONFIG)
+    gpt.eval();
+
+    settings, params = download_and_load_gpt2(model_size="124M", models_dir="gpt2")
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    load_weights_into_gpt(gpt, params)
+    gpt.to(device)
+    
+    # 测试加载的模型
+    tokenizer = tiktoken.get_encoding("gpt2")
+    start_context = "Every effort moves you"
+    
+    print(f"加载的模型配置: {NEW_CONFIG}")
+    print(f"测试输入: {start_context}")
+    
+    # 生成文本测试
+    encoded = text_to_tokens_ids(start_context, tokenizer).to(device)
+    print(f"编码后的输入: {encoded}")
+    
+    with torch.no_grad():
+        tokens_ids = generate_text_simple(gpt, encoded, 50, NEW_CONFIG["context_length"])
+    
+    decoded_text = tokens_ids_to_text(tokens_ids, tokenizer)
+    print(f"生成的文本: {decoded_text}")
+    
+    print("GPT-2模型加载和测试完成！")
 
 if __name__ == '__main__':
     # test()
     # gpt_main()
-    train_main()
+    # train_main()
+    load_model()
